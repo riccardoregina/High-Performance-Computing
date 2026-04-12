@@ -1,0 +1,38 @@
+Calcolo integrale f(x)=x*exp(-x)*cos(2x) in [0.0, 6.3] con 10000000 suddivisioni.
+Valore atteso: -0.12212260813
+
+1. Sequenziale (CPU):
+   Risultato: -0.121182 (Err: 9.403601e-04) | Tempo: 0.135369 sec
+
+2. GPU AtomicAdd base:
+   Risultato: -0.121184 (Err: 9.388551e-04) | Tempo: 8.525943 sec
+
+3. GPU Shared Memory (Tree Sum):
+   Risultato: -0.122109 (Err: 1.341105e-05) | Tempo: 0.215959 sec
+
+4. GPU Shared Memory (Dissemination):
+   Risultato: -0.122109 (Err: 1.358986e-05) | Tempo: 0.215686 sec
+
+5. GPU Warp Shuffle (Tree Sum):
+   Risultato: -0.122109 (Err: 1.356751e-05) | Tempo: 0.215237 sec
+
+6. GPU Multi-Warp (blockSize: 64):
+   Risultato: -0.122127 (Err: 4.336238e-06) | Tempo: 0.109175 sec
+
+6. GPU Multi-Warp (blockSize: 96):
+   Risultato: -0.122122 (Err: 1.713634e-07) | Tempo: 0.073015 sec
+
+6. GPU Multi-Warp (blockSize: 128):
+   Risultato: -0.122122 (Err: 9.462237e-07) | Tempo: 0.055153 sec
+
+6. GPU Multi-Warp (blockSize: 160):
+   Risultato: -0.122121 (Err: 1.944602e-06) | Tempo: 0.044328 sec
+
+6. GPU Multi-Warp (blockSize: 192):
+   Risultato: -0.122122 (Err: 6.034970e-07) | Tempo: 0.037158 sec
+
+6. GPU Multi-Warp (blockSize: 224):
+   Risultato: -0.122123 (Err: 6.780028e-07) | Tempo: 0.031542 sec
+
+6. GPU Multi-Warp (blockSize: 256):
+   Risultato: -0.122123 (Err: 8.046627e-07) | Tempo: 0.028151 sec
