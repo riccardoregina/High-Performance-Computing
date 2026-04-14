@@ -24,7 +24,8 @@ float Trap_Seq(float a, float b, int n) {
 // --------------------------------------------------------
 // 2. KERNEL BASE CON ATOMICADD
 // --------------------------------------------------------
-__global__ void Dev_trap_atomic(const float a, const float b, const float h, const int n, float* trap_p) {
+__global__ void Dev_trap_atomic(const float a, const float b, const float h, 
+                                const int n, float* trap_p) {
     int my_i = blockDim.x * blockIdx.x + threadIdx.x;
     
     if (my_i > 0 && my_i < n) {
@@ -37,6 +38,12 @@ __global__ void Dev_trap_atomic(const float a, const float b, const float h, con
 // --------------------------------------------------------
 // 3. TREE-STRUCTURED SUM
 // --------------------------------------------------------
+// Assuming only one warp in one block. So, __syncthread()
+// as last statement of the for loop is not required since
+// threads of the same warp execute in lockstep.
+// However, from Compute Capability 7.0, threads of the
+// same warp can be scheduled asynchronally, requiring
+// __syncwarp() to be called.
 __device__ float Shared_mem_tree_sum(float* sdata) {
     int tid = threadIdx.x;
     
@@ -48,7 +55,9 @@ __device__ float Shared_mem_tree_sum(float* sdata) {
     return sdata[0];
 }
 
-__global__ void Dev_trap_shared_tree(const float a, const float b, const float h, const int n, float* trap_p) {
+__global__ void Dev_trap_shared_tree(const float a, const float b, 
+                                     const float h, const int n, 
+                                     float* trap_p) {
     extern __shared__ float sdata[];
     
     int my_i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -73,20 +82,18 @@ __device__ float Shared_mem_dissemination_sum(float sval[]) {
     
     for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
         int source = warp_start + ((mylane + offset) % WARP_SIZE);
-        
         float val_to_add = sval[source];
-        
-        __syncwarp(); 
-        
+        //__syncwarp(); //for CC >= 7.0
         sval[tid] += val_to_add;
-        
-        __syncwarp(); 
+        //__syncwarp(); //for CC >= 7.0
     }
     
     return sval[tid];
 }
 
-__global__ void Dev_trap_dissemination(const float a, const float b, const float h, const int n, float* trap_p) {
+__global__ void Dev_trap_dissemination(const float a, const float b, 
+                                       const float h, const int n, 
+                                       float* trap_p) {
     __shared__ float sval[WARP_SIZE];
     
     int my_i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -113,7 +120,9 @@ __device__ float Warp_Sum(float val) {
     return val;
 }
 
-__global__ void Dev_trap_warp_shuffle(const float a, const float b, const float h, const int n, float* trap_p) {
+__global__ void Dev_trap_warp_shuffle(const float a, const float b, 
+                                      const float h, const int n, 
+                                      float* trap_p) {
     int my_i = blockDim.x * blockIdx.x + threadIdx.x;
     int mylane = threadIdx.x % WARP_SIZE;
     
@@ -128,7 +137,9 @@ __global__ void Dev_trap_warp_shuffle(const float a, const float b, const float 
 // --------------------------------------------------------
 // 6. MULTI-WARP OPTIMIZED
 // --------------------------------------------------------
-__global__ void Dev_trap_multi_warp(const float a, const float b, const float h, const int n, float* trap_p) {
+__global__ void Dev_trap_multi_warp(const float a, const float b, 
+                                    const float h, const int n, 
+                                    float* trap_p) {
     __shared__ float thread_calcs[MAX_BLKSZ]; 
     __shared__ float warp_sum_arr[WARP_SIZE];   
 
@@ -169,6 +180,43 @@ __global__ void Dev_trap_multi_warp(const float a, const float b, const float h,
 
         if (my_lane == 0) {
             atomicAdd(trap_p, warp_sum_arr[0]);
+        }
+    }
+}
+
+// --------------------------------------------------------
+// 7. MULTI-WARP OPTIMIZED WITH WARP SHUFFLE
+// --------------------------------------------------------
+__global__ void Dev_trap_multi_warp_shuffle(const float a, const float b, 
+                                            const float h, const int n, 
+                                            float* trap_p) {
+    __shared__ float warp_sum_arr[MAX_BLKSZ];   
+
+    int tid = threadIdx.x;
+    int w = tid / WARP_SIZE;
+    int my_lane = tid % WARP_SIZE;
+    int my_i = blockDim.x * blockIdx.x + tid;
+
+    float my_val = (my_i > 0 && my_i < n) ? f(a + my_i * h) : 0.0f;
+    float warp_sum = Warp_Sum(my_val);
+
+    if (my_lane == 0) {
+        warp_sum_arr[w] = warp_sum;
+    }
+    __syncthreads(); 
+
+    if (w == 0) {
+        int num_warps = blockDim.x / WARP_SIZE;
+        
+        if (my_lane >= num_warps) {
+            warp_sum_arr[my_lane] = 0.0f;
+        }
+
+        my_val = warp_sum_arr[my_lane];
+        float sum = Warp_Sum(my_val);
+
+        if (my_lane == 0) {
+            atomicAdd(trap_p, sum);
         }
     }
 }
