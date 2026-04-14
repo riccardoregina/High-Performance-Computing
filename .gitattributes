@@ -1,0 +1,26 @@
+# Enforce Unix LF line endings for all source files
+
+# C/C++ and CUDA files
+*.c      text eol=lf
+*.cpp    text eol=lf
+*.cc     text eol=lf
+*.cxx    text eol=lf
+*.h      text eol=lf
+*.hpp    text eol=lf
+*.cu     text eol=lf
+*.cuh    text eol=lf
+
+# Build files
+Makefile text eol=lf
+*.mk     text eol=lf
+*.cmake  text eol=lf
+CMakeLists.txt text eol=lf
+
+# Script files
+*.sh     text eol=lf
+*.py     text eol=lf
+*.pl     text eol=lf
+
+# Text files
+*.txt    text eol=lf
+*.md     text eol=lf
