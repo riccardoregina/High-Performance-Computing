@@ -59,7 +59,7 @@ The program computes the integral using all 7 implementations, testing multiple 
 
 ```bash
 cd utils
-nvcc -o device.out device.cu
+nvcc device.cu -o device.out -lcuda
 ./device.out
 ```
 
